@@ -25,8 +25,12 @@ cd prepare-dataset
 pip install -r requirements.txt
 ```
 
-3. Run the main pipeline
+3. Put your example files in *./src/data/input*
+
+4. Run the main pipeline
 
 ```bash
 python main.py
 ```
+
+5. Your final datasets are in *./src/data/output*
