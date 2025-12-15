@@ -25,7 +25,7 @@ cd prepare-dataset
 pip install -r requirements.txt
 ```
 
-3. Put your example files in *./src/data/input*
+3. Put your example files in **./src/data/input**
 
 4. Run the main pipeline
 
@@ -33,4 +33,4 @@ pip install -r requirements.txt
 python main.py
 ```
 
-5. Your final datasets are in *./src/data/output*
+5. Your final datasets are in **./src/data/output**
