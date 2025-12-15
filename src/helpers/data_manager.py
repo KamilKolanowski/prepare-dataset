@@ -26,7 +26,8 @@ class DataManager:
                 "PayoutAmount": pl.Utf8,
                 "PayoutAmountEuro": pl.Utf8,
                 "HoursAmount": pl.Utf8
-            }
+            },
+            infer_schema_length=1000
         )
 
         for col in ["PayoutAmount", "PayoutAmountEuro", "HoursAmount"]:
@@ -40,8 +41,6 @@ class DataManager:
 
         return df
 
-
-    
     def extract_column_names(self):
         headers = self.read_file().columns
         return headers
@@ -232,57 +231,77 @@ class DataManager:
 
     def generate_dim_employee(self) -> pl.DataFrame:
         employee_ids = list(self.generate_new_employee_ids("EmployeeSourceId"))
-
+ 
         first_names = [self.fake.first_name().upper() for _ in range(self.rows_amt)]
         last_names = [self.fake.last_name().upper() for _ in range(self.rows_amt)]
         middle_names = [
             self.fake.first_name().upper() if random.random() < 0.2 else ""
             for _ in range(self.rows_amt)
         ]
-
+ 
         full_names = [
             f"{f} {m + ' ' if m else ''}{l}"
             for f, m, l in zip(first_names, middle_names, last_names)
         ]
-
+ 
         work_emails = [
             f"{f.lower()}.{l.lower()}@workmail.com".upper()
             for f, l in zip(first_names, last_names)
         ]
-
+ 
         national_ids = [
             random.choice([c.alpha_2 for c in pycountry.countries]).upper()
             for _ in range(self.rows_amt)
         ]
-
+ 
+        citizenships = [
+            random.choice([c.name for c in pycountry.countries])
+            for _ in range(self.rows_amt)
+        ]
+ 
         birth_dates = self._random_dates(
             datetime(1940, 1, 1),
             datetime(2008, 1, 1)
         )
-
+ 
         hire_dates = self._random_dates(
             datetime(2010, 1, 1),
             datetime(2023, 12, 31)
         )
-
+ 
         termination_dates, termination_reasons = self._generate_termination()
-
+ 
         positions, levels = self._generate_positions_and_levels()
-
+ 
+        sexs = [random.randint(0, 1) for _ in range(self.rows_amt)]
+ 
+        is_working = [
+            0 if (td and td != "" and (
+                datetime.strptime(str(td), "%Y%m%d") if isinstance(td, (int, str)) else td
+            ) <= datetime.now()) else 1
+            for td in termination_dates
+        ]
+ 
         (
             supervisor_ids,
             sup_fn,
             sup_mn,
             sup_ln,
-            sup_full
+            sup_full,
+            positions
         ) = self._generate_supervision(
             employee_ids,
             (first_names, middle_names, last_names),
             positions
         )
 
+        levels = [
+            {"Intern": 1, "Contractor": 2, "Employee": 3, "Manager": 4}[p]
+            for p in positions
+        ]
+ 
         dept_lvl1, dept_lvl2 = self._generate_departments(positions)
-
+ 
         return pl.DataFrame({
             "EmployeeSourceId": employee_ids,
             "FirstName": first_names,
@@ -291,8 +310,15 @@ class DataManager:
             "FullName": full_names,
             "WorkEmail": work_emails,
             "NationalId": national_ids,
-            "CitizenshipCode": national_ids,
+            "Citizenship": citizenships,
             "BirthDate": birth_dates,
+            "Sex": sexs,
+            "IsWorking": is_working,
+            "IsOnAbsence": [random.randint(0, 1) if random.random() < 0.2 else None for _ in range(self.rows_amt)],
+            "IsSuspended": [random.randint(0, 1) if random.random() < 0.2 else None for _ in range(self.rows_amt)],
+            "IsStudent": [random.randint(0, 1) if random.random() < 0.2 else None for _ in range(self.rows_amt)],
+            "IsJuvenile": [random.randint(0, 1) if random.random() < 0.2 else None for _ in range(self.rows_amt)],
+            "HasDisability": [random.randint(0, 1) if random.random() < 0.2 else None for _ in range(self.rows_amt)],
             "HireDate": hire_dates,
             "TerminationDate": termination_dates,
             "TerminationReasonCode": termination_reasons,
@@ -305,13 +331,13 @@ class DataManager:
             "SupervisorFullName": sup_full,
             "CostCenterId": list(self.extract_list_of_random_values_from_file("CostCenterId")),
             "Localization": list(self.extract_list_of_random_values_from_file("Localization")),
-            "EmployeeGroupId": ["E"] * self.rows_amt,
-            "EmployeeGroupName": ["Empleados"] * self.rows_amt,
+            "EmployeeGroupId": list(self.extract_list_of_random_values_from_file("EmployeeGroupId")),
+            "EmployeeGroupName": list(self.extract_list_of_random_values_from_file("EmployeeGroupName")),
             "DepartmentLvl1": dept_lvl1,
             "DepartmentLvl2": dept_lvl2,
-            "DepartmentLvl3": [""] * self.rows_amt,
-            "DepartmentLvl4": [""] * self.rows_amt,
-            "DepartmentLvl5": [""] * self.rows_amt,
+            "DepartmentLvl3": [None] * self.rows_amt,
+            "DepartmentLvl4": [None] * self.rows_amt,
+            "DepartmentLvl5": [None] * self.rows_amt,
             "SeniorityDays": [random.randint(0, 25000) for _ in range(self.rows_amt)],
         })
     
@@ -361,7 +387,7 @@ class DataManager:
         })
 
     def save_df_to_csv(self, df: pl.DataFrame, country: str, table_name: str):
-        df.write_csv(f"./src/data/output/PAYROLL_AMR_{country}001_{table_name}_D{datetime.now().strftime('%Y%m%d')}.csv", separator=";")
+        df.write_csv(f"./src/data/output/{country}/PAYROLL_AMR_{country}001_{table_name}_D{datetime.now().strftime('%Y%m%d')}.csv", separator=";")
 
 
     def _random_dates(self, start: datetime, end: datetime) -> list:
@@ -424,6 +450,8 @@ class DataManager:
         return lvl1, lvl2
 
     def _generate_supervision(self, employee_ids, names, positions):
+        positions = positions.copy()  # <-- key line
+
         indices = [random.choice(range(self.rows_amt)) for _ in range(self.rows_amt)]
 
         for idx in set(indices):
@@ -446,5 +474,7 @@ class DataManager:
             [fn[i] for i in indices],
             [mn[i] for i in indices],
             [ln[i] for i in indices],
-            full
+            full,
+            positions,
         )
+        
