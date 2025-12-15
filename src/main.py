@@ -31,7 +31,7 @@ class ETLPipeline:
         if fact_name == "FactEmployeePayroll":
             fact_df = dm.generate_fact_employee_payroll(dim_employee_df, year, month, lookup_path=src_path)
         elif fact_name == "FactEmployeeAbsence":
-            fact_df = dm.generate_fact_employee_absence(dim_employee_df, year, month)
+            fact_df = dm.generate_fact_employee_absence(dim_employee_df, year, month, lookup_path=src_path)
         elif fact_name == "FactEmployeeDisability":
             fact_df = dm.generate_fact_employee_disability(dim_employee_df, year, month)
         else:
@@ -76,21 +76,21 @@ if __name__ == "__main__":
         month=4
     )
 
-    # pipeline.generate_fact_table(
-    #     fact_name="FactEmployeeAbsence",
-    #     src_path="./src/data/input/FactEmployeeAbsence.csv",
-    #     file_name="FACT002",
-    #     year=2025,
-    #     month=4
-    # )
+    pipeline.generate_fact_table(
+        fact_name="FactEmployeeAbsence",
+        src_path="./src/data/input/FactEmployeeAbsence.csv",
+        file_name="FACT006",
+        year=2025,
+        month=4
+    )
 
-    # pipeline.generate_fact_table(
-    #     fact_name="FactEmployeeDisability",
-    #     src_path="./src/data/input/FactEmployeeDisability.csv",
-    #     file_name="FACT003",
-    #     year=2025,
-    #     month=4
-    # )
+    pipeline.generate_fact_table(
+        fact_name="FactEmployeeDisability",
+        src_path="./src/data/input/FactEmployeeDisability.csv",
+        file_name="FACT002",
+        year=2025,
+        month=4
+    )
 
     pipeline.generate_dim_employee_contract(
         src_path="./src/data/input/DimEmployeeContract.csv",

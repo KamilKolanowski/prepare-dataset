@@ -101,48 +101,116 @@ class DataManager:
     def generate_fact_employee_payroll(self, dim_employee_df: pl.DataFrame, year: int, month: int, lookup_path: str):
         employee_ids = dim_employee_df["EmployeeSourceId"].to_list()
         cost_center_ids = dim_employee_df["CostCenterId"].to_list()
-        rows = len(employee_ids)
-
-        lookup_dm = DataManager(lookup_path, rows)
+        lookup_dm = DataManager(lookup_path, len(employee_ids))
         wage_component_codes = list(lookup_dm.extract_list_of_random_values_from_file("WageComponentCode"))
         pay_group_codes = list(lookup_dm.extract_list_of_random_values_from_file("PayGroupCode"))
 
-        hours = []
-        salaries = []
+        all_rows = []
 
-        for _ in range(rows):
-            is_negative = random.random() < 0.1
-            h = float(next(self.generate_random_decimals(2, 0, True)))
-            s = float(next(self.generate_random_decimals(4, 2)))
+        for emp_id, cost_center in zip(employee_ids, cost_center_ids):
+            num_rows = random.choice([1, 1, 2, 3])
+            used_dates = []
 
-            if is_negative:
-                h_str = f"{h}-"
-                s_str = f"{s}-"
-            else:
-                h_str = str(h)
-                s_str = str(s)
+            for _ in range(num_rows):
+                for pd in self.generate_payroll_dates(year, month, 6):
+                    if pd not in used_dates:
+                        used_dates.append(pd)
+                        payroll_date = pd
+                        break
 
-            hours.append(h_str)
-            salaries.append(s_str)
+                is_negative = random.random() < 0.1
+                h = float(next(self.generate_random_decimals(2, 0, True)))
+                s = float(next(self.generate_random_decimals(4, 2)))
+                if is_negative:
+                    h_str = f"{h}-"
+                    s_str = f"{s}-"
+                else:
+                    h_str = str(h)
+                    s_str = str(s)
 
-        payroll_dates = list(self.generate_payroll_dates(year, month, 6))
-        payroll_dates = list(islice(cycle(payroll_dates), rows))
+                all_rows.append({
+                    "EmployeeId": emp_id,
+                    "CostCenterId": cost_center,
+                    "WageComponentCode": random.choice(wage_component_codes),
+                    "PayGroupCode": random.choice(pay_group_codes),
+                    "PayoutStartDate": payroll_date[0],
+                    "PayoutEndDate": payroll_date[1],
+                    "PayrollDate": payroll_date[2],
+                    "PayrollNumber": payroll_date[3],
+                    "PayoutAmount": s_str,
+                    "PayoutAmountEuro": s_str,
+                    "CurrencyCode": "EUR",
+                    "HoursAmount": h_str
+                })
 
-        return pl.DataFrame({
-            "EmployeeId": employee_ids,
-            "CostCenterId": cost_center_ids,
-            "WageComponentCode": wage_component_codes,
-            "PayGroupCode": pay_group_codes,
-            "PayoutStartDate": [d[0] for d in payroll_dates],
-            "PayoutEndDate": [d[1] for d in payroll_dates],
-            "PayrollDate": [d[2] for d in payroll_dates],
-            "PayrollNumber": [d[3] for d in payroll_dates],
-            "PayoutAmount": salaries,
-            "PayoutAmountEuro": salaries,
-            "CurrencyCode": ["EUR"] * rows,
-            "HoursAmount": hours,
-        })
+        return pl.DataFrame(all_rows)
 
+
+    def generate_fact_employee_disability(self, dim_employee_df: pl.DataFrame, year: int, month: int) -> pl.DataFrame:
+        all_records = []
+        for emp_id in dim_employee_df["EmployeeSourceId"]:
+            num_rows = random.choice([0, 1, 1, 2])
+            used_ranges = []
+
+            for _ in range(num_rows):
+                start_date = next(self.generate_dates(datetime(year, month, 1), datetime(year, month, monthrange(year, month)[1])))[0]
+                start_dt = datetime.strptime(str(start_date), "%Y%m%d")
+                duration = random.randint(1, 60)
+                end_dt = start_dt + timedelta(days=duration - 1)
+                end_date = int(end_dt.strftime("%Y%m%d"))
+
+                overlaps = any(start_dt <= e and end_dt >= s for s, e in used_ranges)
+                if overlaps:
+                    continue
+
+                used_ranges.append((start_dt, end_dt))
+                all_records.append({
+                    "EmployeeId": emp_id,
+                    "DisabilityId": random.randint(1, 5),
+                    "StartDate": start_date,
+                    "EndDate": end_date
+                })
+
+        return pl.DataFrame(all_records)
+
+
+    def generate_fact_employee_absence(self, dim_employee_df: pl.DataFrame, year: int, month: int, lookup_path: str) -> pl.DataFrame:
+        lookup_dm = DataManager(lookup_path, len(dim_employee_df))
+        absence_codes = list(lookup_dm.extract_list_of_random_values_from_file("AbsenceCode"))
+
+        all_records = []
+
+        for emp_id in dim_employee_df["EmployeeSourceId"]:
+            num_rows = random.choice([0, 1, 1, 2])
+            used_ranges = []
+
+            for _ in range(num_rows):
+                absence_code = random.choice(absence_codes)
+                start_date = next(self.generate_dates(datetime(year, month, 1), datetime(year, month, monthrange(year, month)[1])))[0]
+                start_dt = datetime.strptime(str(start_date), "%Y%m%d")
+                duration_days = random.randint(1, 30)
+                end_dt = start_dt + timedelta(days=duration_days - 1)
+                end_date = int(end_dt.strftime("%Y%m%d"))
+
+                overlaps = any(start_dt <= e and end_dt >= s for s, e in used_ranges)
+                if overlaps:
+                    continue
+                used_ranges.append((start_dt, end_dt))
+
+                working_days = min(duration_days, (duration_days // 7) * 5 + duration_days % 7)
+                working_hours = working_days * 8
+
+                all_records.append({
+                    "EmployeeId": emp_id,
+                    "AbsenceCode": absence_code,
+                    "StartDate": start_date,
+                    "EndDate": end_date,
+                    "Days": float(duration_days),
+                    "WorkingDays": float(working_days),
+                    "WorkingHours": float(working_hours)
+                })
+
+        return pl.DataFrame(all_records)
 
     def generate_dim_employee(self) -> pl.DataFrame:
         employee_ids = list(self.generate_new_employee_ids("EmployeeSourceId"))
