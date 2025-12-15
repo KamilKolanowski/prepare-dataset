@@ -25,15 +25,15 @@ class ETLPipeline:
         if employee_dim_key not in self.dim_tables:
             raise ValueError(f"{employee_dim_key} not generated yet")
 
-        dm = data_manager.DataManager(src_path, len(self.dim_tables[employee_dim_key]))
-        employee_ids = self.dim_tables[employee_dim_key]["EmployeeSourceId"].to_list()
+        dim_employee_df = self.dim_tables[employee_dim_key]
+        dm = self.dm_instances[employee_dim_key]
 
         if fact_name == "FactEmployeePayroll":
-            fact_df = dm.generate_fact_employee_payroll(employee_ids, year, month)
+            fact_df = dm.generate_fact_employee_payroll(dim_employee_df, year, month, lookup_path=src_path)
         elif fact_name == "FactEmployeeAbsence":
-            fact_df = dm.generate_fact_employee_absence(employee_ids, year, month)
+            fact_df = dm.generate_fact_employee_absence(dim_employee_df, year, month)
         elif fact_name == "FactEmployeeDisability":
-            fact_df = dm.generate_fact_employee_disability(employee_ids, year, month)
+            fact_df = dm.generate_fact_employee_disability(dim_employee_df, year, month)
         else:
             raise ValueError(f"Unknown fact table: {fact_name}")
 
@@ -92,8 +92,8 @@ if __name__ == "__main__":
     #     month=4
     # )
 
-    # pipeline.generate_dim_employee_contract(
-    #     src_path="./src/data/input/DimEmployeeContract.csv",
-    #     rows_amt=rows_amt,
-    #     file_name="DIM002"
-    # )
+    pipeline.generate_dim_employee_contract(
+        src_path="./src/data/input/DimEmployeeContract.csv",
+        rows_amt=rows_amt,
+        file_name="DIM009"
+    )

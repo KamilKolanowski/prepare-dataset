@@ -98,25 +98,17 @@ class DataManager:
             yield [int(birth_date.strftime("%Y%m%d"))]
             
 
-    def generate_fact_employee_payroll(self, employee_ids: list[int], year: int, month: int):
+    def generate_fact_employee_payroll(self, dim_employee_df: pl.DataFrame, year: int, month: int, lookup_path: str):
+        employee_ids = dim_employee_df["EmployeeSourceId"].to_list()
+        cost_center_ids = dim_employee_df["CostCenterId"].to_list()
         rows = len(employee_ids)
 
-        cost_center_ids = random.choices(
-            list(self.extract_list_of_random_values_from_file("CostCenterID")),
-            k=rows
-        )
-        wage_component_codes = random.choices(
-            list(self.extract_list_of_random_values_from_file("WageComponentCode")),
-            k=rows
-        )
-        pay_group_codes = random.choices(
-            list(self.extract_list_of_random_values_from_file("PayGroupCode")),
-            k=rows
-        )
+        lookup_dm = DataManager(lookup_path, rows)
+        wage_component_codes = list(lookup_dm.extract_list_of_random_values_from_file("WageComponentCode"))
+        pay_group_codes = list(lookup_dm.extract_list_of_random_values_from_file("PayGroupCode"))
 
         salaries = [float(x) for x in self.generate_random_decimals(4, 2)]
         hours = [float(x) for x in self.generate_random_decimals(2, 0, True)]
-
         payroll_dates = list(self.generate_payroll_dates(year, month, 6))
         payroll_dates = list(islice(cycle(payroll_dates), rows))
 
@@ -218,6 +210,51 @@ class DataManager:
             "DepartmentLvl4": [""] * self.rows_amt,
             "DepartmentLvl5": [""] * self.rows_amt,
             "SeniorityDays": [random.randint(0, 25000) for _ in range(self.rows_amt)],
+        })
+    
+    def generate_dim_employee_contract(self, dim_employee_df: pl.DataFrame) -> pl.DataFrame:
+        employee_ids = dim_employee_df["EmployeeSourceId"].to_list()
+        cost_center_ids = dim_employee_df["CostCenterId"].to_list()
+        
+        num_rows = len(employee_ids)
+        
+        employee_contract_ids = list(range(1, num_rows + 1))
+        currency_ids = ["EUR"] * num_rows
+        contract_types = ["Fijo"] * num_rows
+
+        contract_start_dates = [
+            next(self.generate_dates(datetime(2010, 1, 1), datetime(2025, 12, 31)))[0]
+            for _ in range(num_rows)
+        ]
+
+        contract_end_dates = []
+        for start in contract_start_dates:
+            if random.random() < 0.5:
+                contract_end_dates.append(99991231)
+            else:
+                start_dt = datetime.strptime(str(start), "%Y%m%d")
+                end_dt = start_dt + timedelta(days=random.randint(30, 365*5))
+                contract_end_dates.append(int(end_dt.strftime("%Y%m%d")))
+        
+        pay_group_codes = [next(self.extract_list_of_random_values_from_file("PayGroupCode")) for _ in range(num_rows)]
+        salaries = [float(x) for x in self.generate_random_decimals(4, 2)]
+        full_time_equiv = [100] * num_rows
+        is_annex = [None] * num_rows
+        calendar_date_valid_for = [next(self.generate_dates(datetime(2025, 1, 1), datetime(2025, 12, 31)))[0] for _ in range(num_rows)]
+        
+        return pl.DataFrame({
+            "EmployeeContractId": employee_contract_ids,
+            "EmployeeId": employee_ids,
+            "CurrencyId": currency_ids,
+            "ContractTypeMainCode": contract_types,
+            "EmployeeContractStartDate": contract_start_dates,
+            "EmployeeContractEndDate": contract_end_dates,
+            "PayGroupCode": pay_group_codes,
+            "Salary": salaries,
+            "FullTimeEquivalent": full_time_equiv,
+            "CostCenterId": cost_center_ids,
+            "IsAnnex": is_annex,
+            "CalendarDateValidFor": calendar_date_valid_for
         })
 
     def save_df_to_csv(self, df: pl.DataFrame, country: str, table_name: str):
