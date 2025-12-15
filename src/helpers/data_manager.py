@@ -450,7 +450,7 @@ class DataManager:
         return lvl1, lvl2
 
     def _generate_supervision(self, employee_ids, names, positions):
-        positions = positions.copy()  # <-- key line
+        positions = positions.copy()
 
         indices = [random.choice(range(self.rows_amt)) for _ in range(self.rows_amt)]
 
