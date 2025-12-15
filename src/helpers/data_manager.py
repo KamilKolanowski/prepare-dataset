@@ -21,9 +21,10 @@ class DataManager:
         df = pl.read_csv(
             self.path,
             has_header=True,
-            separator=";"
+            separator=";",
+            dtypes={ "PayoutAmount": pl.Utf8, "PayoutAmountEuro": pl.Utf8, "HoursAmount": pl.Utf8 }
         )
-        
+
         for col in ["PayoutAmount", "PayoutAmountEuro", "HoursAmount"]:
             if col in df.columns:
                 df = df.with_columns(
