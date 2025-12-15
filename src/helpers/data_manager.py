@@ -28,11 +28,12 @@ class DataManager:
         for col in ["PayoutAmount", "PayoutAmountEuro", "HoursAmount"]:
             if col in df.columns:
                 df = df.with_columns(
-                    pl.col(col)
-                    .apply(lambda x: -float(x[:-1]) if isinstance(x, str) and x.endswith("-") else float(x))
-                    .alias(col)
+                    pl.col(col).map(
+                        lambda x: -float(x[:-1]) if isinstance(x, str) and x.endswith("-") else float(x)
+                    ).alias(col)
                 )
         return df
+
     
     def extract_column_names(self):
         headers = self.read_file().columns
