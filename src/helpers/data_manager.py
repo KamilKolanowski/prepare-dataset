@@ -107,8 +107,24 @@ class DataManager:
         wage_component_codes = list(lookup_dm.extract_list_of_random_values_from_file("WageComponentCode"))
         pay_group_codes = list(lookup_dm.extract_list_of_random_values_from_file("PayGroupCode"))
 
-        salaries = [float(x) for x in self.generate_random_decimals(4, 2)]
-        hours = [float(x) for x in self.generate_random_decimals(2, 0, True)]
+        hours = []
+        salaries = []
+
+        for _ in range(rows):
+            is_negative = random.random() < 0.1
+            h = float(next(self.generate_random_decimals(2, 0, True)))
+            s = float(next(self.generate_random_decimals(4, 2)))
+
+            if is_negative:
+                h_str = f"{h}-"
+                s_str = f"{s}-"
+            else:
+                h_str = str(h)
+                s_str = str(s)
+
+            hours.append(h_str)
+            salaries.append(s_str)
+
         payroll_dates = list(self.generate_payroll_dates(year, month, 6))
         payroll_dates = list(islice(cycle(payroll_dates), rows))
 
@@ -126,6 +142,7 @@ class DataManager:
             "CurrencyCode": ["EUR"] * rows,
             "HoursAmount": hours,
         })
+
 
     def generate_dim_employee(self) -> pl.DataFrame:
         employee_ids = list(self.generate_new_employee_ids("EmployeeSourceId"))
