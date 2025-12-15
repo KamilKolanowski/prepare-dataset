@@ -17,13 +17,16 @@ The data respects referential integrity between dimensions and facts.
 ```bash
 git clone https://github.com/KamilKolanowski/prepare-dataset.git
 cd prepare-dataset
+```
 
 2. Install dependencies
 
 ```bash
 pip install -r requirements.txt
+```
 
 3. Run the main pipeline
 
 ```bash
 python main.py
+```
