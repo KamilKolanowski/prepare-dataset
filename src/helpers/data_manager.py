@@ -18,11 +18,20 @@ class DataManager:
         self.fake = Faker()
 
     def read_file(self):
-        return pl.read_csv(
+        df = pl.read_csv(
             self.path,
             has_header=True,
             separator=";"
         )
+        
+        for col in ["PayoutAmount", "PayoutAmountEuro", "HoursAmount"]:
+            if col in df.columns:
+                df = df.with_columns(
+                    pl.col(col)
+                    .apply(lambda x: -float(x[:-1]) if isinstance(x, str) and x.endswith("-") else float(x))
+                    .alias(col)
+                )
+        return df
     
     def extract_column_names(self):
         headers = self.read_file().columns
@@ -285,7 +294,7 @@ class DataManager:
             "SupervisorMiddleName": sup_mn,
             "SupervisorLastName": sup_ln,
             "SupervisorFullName": sup_full,
-            "CostCenterId": list(self.extract_list_of_random_values_from_file("CostCenterID")),
+            "CostCenterId": list(self.extract_list_of_random_values_from_file("CostCenterId")),
             "Localization": list(self.extract_list_of_random_values_from_file("Localization")),
             "EmployeeGroupId": ["E"] * self.rows_amt,
             "EmployeeGroupName": ["Empleados"] * self.rows_amt,
