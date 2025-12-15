@@ -22,17 +22,24 @@ class DataManager:
             self.path,
             has_header=True,
             separator=";",
-            dtypes={ "PayoutAmount": pl.Utf8, "PayoutAmountEuro": pl.Utf8, "HoursAmount": pl.Utf8 }
+            dtypes={
+                "PayoutAmount": pl.Utf8,
+                "PayoutAmountEuro": pl.Utf8,
+                "HoursAmount": pl.Utf8
+            }
         )
 
         for col in ["PayoutAmount", "PayoutAmountEuro", "HoursAmount"]:
             if col in df.columns:
-                df = df.with_columns(
-                    pl.col(col).map(
-                        lambda x: -float(x[:-1]) if isinstance(x, str) and x.endswith("-") else float(x)
-                    ).alias(col)
-                )
+                df = df.with_columns([
+                    pl.Series(
+                        name=col,
+                        values=[-float(x[:-1]) if x.endswith("-") else float(x) for x in df[col]]
+                    )
+                ])
+
         return df
+
 
     
     def extract_column_names(self):
