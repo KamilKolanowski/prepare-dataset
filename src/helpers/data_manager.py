@@ -361,7 +361,7 @@ class DataManager:
         })
 
     def save_df_to_csv(self, df: pl.DataFrame, country: str, table_name: str):
-        df.write_csv(f"./src/data/output/PAYROLL_AMR_{country}001_{table_name}_D{datetime.now().strftime('%Y%m%d')}.csv")
+        df.write_csv(f"./src/data/output/PAYROLL_AMR_{country}001_{table_name}_D{datetime.now().strftime('%Y%m%d')}.csv", separator=";")
 
 
     def _random_dates(self, start: datetime, end: datetime) -> list:
