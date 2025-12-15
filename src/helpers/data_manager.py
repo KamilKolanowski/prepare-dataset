@@ -98,40 +98,43 @@ class DataManager:
             yield [int(birth_date.strftime("%Y%m%d"))]
             
 
-    def generate_fact_employee_payroll(self, year: int, month: int):
-        employee_ids = list(self.generate_new_employee_ids("EmployeeId"))
-        cost_center_ids = list(self.extract_list_of_random_values_from_file("CostCenterID"))
-        wage_component_codes = list(self.extract_list_of_random_values_from_file("WageComponentCode"))
-        pay_group_codes = list(self.extract_list_of_random_values_from_file("PayGroupCode"))
+    def generate_fact_employee_payroll(self, employee_ids: list[int], year: int, month: int):
+        rows = len(employee_ids)
+
+        cost_center_ids = random.choices(
+            list(self.extract_list_of_random_values_from_file("CostCenterID")),
+            k=rows
+        )
+        wage_component_codes = random.choices(
+            list(self.extract_list_of_random_values_from_file("WageComponentCode")),
+            k=rows
+        )
+        pay_group_codes = random.choices(
+            list(self.extract_list_of_random_values_from_file("PayGroupCode")),
+            k=rows
+        )
+
         salaries = [float(x) for x in self.generate_random_decimals(4, 2)]
         hours = [float(x) for x in self.generate_random_decimals(2, 0, True)]
+
         payroll_dates = list(self.generate_payroll_dates(year, month, 6))
+        payroll_dates = list(islice(cycle(payroll_dates), rows))
 
-        payroll_dates_repeated = list(islice(cycle(payroll_dates), len(employee_ids)))
-
-        payout_start = [x[0] for x in payroll_dates_repeated]
-        payout_end = [x[1] for x in payroll_dates_repeated]
-        payroll_date = [x[2] for x in payroll_dates_repeated]
-        payroll_number = [x[3] for x in payroll_dates_repeated]
-        currency_codes = ["EUR"] * len(employee_ids)
-
-        fact_employee_payroll = pl.DataFrame({
+        return pl.DataFrame({
             "EmployeeId": employee_ids,
             "CostCenterId": cost_center_ids,
             "WageComponentCode": wage_component_codes,
             "PayGroupCode": pay_group_codes,
-            "PayoutStartDate": payout_start,
-            "PayoutEndDate": payout_end,
-            "PayrollDate": payroll_date,
-            "PayrollNumber": payroll_number,
+            "PayoutStartDate": [d[0] for d in payroll_dates],
+            "PayoutEndDate": [d[1] for d in payroll_dates],
+            "PayrollDate": [d[2] for d in payroll_dates],
+            "PayrollNumber": [d[3] for d in payroll_dates],
             "PayoutAmount": salaries,
             "PayoutAmountEuro": salaries,
-            "CurrencyCode": currency_codes,
+            "CurrencyCode": ["EUR"] * rows,
             "HoursAmount": hours,
         })
 
-        return fact_employee_payroll
-    
     def generate_dim_employee(self) -> pl.DataFrame:
         employee_ids = list(self.generate_new_employee_ids("EmployeeSourceId"))
 
