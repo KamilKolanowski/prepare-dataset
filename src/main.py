@@ -1,12 +1,9 @@
 from helpers import data_manager
 
-
-
 if __name__ == "__main__":
-    dm = data_manager.DataManager("./src/data/FactEmployeePayroll.csv", 4)
-    print(list(dm.generate_new_employee_ids()))
-    print(list(dm.extract_list_of_random_values_from_file("WageComponentCode")))
-    print(list(dm.generate_random_decimals()))
-    print()
-    print(list(dm.generate_payroll_dates(2025, 4, 6)))
+    dm = data_manager.DataManager("./src/data/input/FactEmployeePayroll.csv", 32)
+   
+    fact_payroll = dm.generate_fact_employee_payroll(2025, 4)
+    dm.save_df_to_csv(fact_payroll, "ES", "FACT001")
+
     
